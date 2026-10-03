@@ -1,50 +1,80 @@
 package cn.aobp.wishboard.model;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import java.time.Instant;
-import lombok.Value;
+import lombok.Data;
 
-/** 新公开分页接口的展示模型，显式选择字段以隔离管理数据。 */
-@Value
+import java.time.Instant;
+
+/**
+ * 公开便签，不包含投稿者 IP、关联用户名等管理信息。
+ */
+@Data
 @Schema(name = "PublicWish")
 public class PublicWish {
-    PublicMetadata metadata;
-    PublicSpec spec;
+
+    private PublicMetadata metadata;
+    private PublicSpec spec;
 
     public static PublicWish from(Wish wish) {
         var spec = wish.getSpec();
-        var nickname = spec.getNickname();
+        String nickname = spec.getNickname();
         if (spec.isAnonymous() || nickname == null || nickname.isBlank()) {
             nickname = "匿名";
         }
-        return new PublicWish(new PublicMetadata(wish.getMetadata().getName()),
-            new PublicSpec(spec.getContent(), nickname, spec.getType(), spec.getColor(),
-                spec.getStatus(), spec.isAnonymous(), spec.getAiReply(), spec.getEmotionTag(),
-                spec.getDoneImage(), spec.getDoneNote(), spec.getPriority(), spec.getCreatedAt(),
-                spec.getCompletedAt()));
+        PublicWish result = new PublicWish();
+        result.setMetadata(new PublicMetadata());
+        result.getMetadata().setName(wish.getMetadata().getName());
+        result.setSpec(new PublicSpec());
+        result.getSpec().setContent(spec.getContent());
+        result.getSpec().setNickname(nickname);
+        result.getSpec().setType(spec.getType());
+        result.getSpec().setColor(spec.getColor());
+        result.getSpec().setStatus(spec.getStatus());
+        result.getSpec().setAnonymous(spec.isAnonymous());
+        result.getSpec().setAiReply(spec.getAiReply());
+        result.getSpec().setEmotionTag(spec.getEmotionTag());
+        result.getSpec().setDoneImage(spec.getDoneImage());
+        result.getSpec().setDoneNote(spec.getDoneNote());
+        result.getSpec().setPriority(spec.getPriority());
+        result.getSpec().setCreatedAt(spec.getCreatedAt());
+        result.getSpec().setCompletedAt(spec.getCompletedAt());
+        return result;
     }
 
-    @Value
+    @Data
     @Schema(name = "PublicWishMetadata")
     public static class PublicMetadata {
-        String name;
+        private String name;
     }
 
-    @Value
+    @Data
     @Schema(name = "PublicWishSpec")
     public static class PublicSpec {
-        String content;
-        String nickname;
-        String type;
-        String color;
-        String status;
-        boolean anonymous;
-        String aiReply;
-        String emotionTag;
-        String doneImage;
-        String doneNote;
-        String priority;
-        Instant createdAt;
-        Instant completedAt;
+        /** 便签内容 */
+        private String content;
+        /** 昵称（匿名或未填写时为“匿名”） */
+        private String nickname;
+        /** 类型 slug */
+        private String type;
+        /** 便签颜色 */
+        private String color;
+        /** 公开状态: approved/pending/doing/done */
+        private String status;
+        /** 是否匿名 */
+        private boolean anonymous;
+        /** AI 暖心回复 */
+        private String aiReply;
+        /** AI 情绪标签 emoji */
+        private String emotionTag;
+        /** 心愿达成后的纪念照片 */
+        private String doneImage;
+        /** 心愿达成感言 */
+        private String doneNote;
+        /** 优先级: normal/important/urgent */
+        private String priority;
+        /** 创建时间 */
+        private Instant createdAt;
+        /** 完成时间 */
+        private Instant completedAt;
     }
 }

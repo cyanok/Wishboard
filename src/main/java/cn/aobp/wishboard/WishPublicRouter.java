@@ -72,8 +72,9 @@ public class WishPublicRouter implements CustomEndpoint {
                             .allowableValues(new String[]{"createdAt,desc", "createdAt,asc"})))
                     .response(responseBuilder().responseCode("200").description("公开便签分页结果")
                         .implementation(ListResult.generateGenericClass(PublicWish.class)))
-                    .response(responseBuilder().responseCode("400").description("查询参数无效")
-                        .implementation(PublicQueryError.class)))
+                    .response(responseBuilder().responseCode("400")
+                        .description("查询参数无效，返回 {\"error\": \"说明\"}")
+                        .implementation(Map.class)))
             .POST("wishes/-/submit", this::submitWish,
                 b -> b.operationId("SubmitWish").tag(tag)
                     .description("访客投稿便签（树洞/心愿）")
@@ -92,11 +93,14 @@ public class WishPublicRouter implements CustomEndpoint {
                 request.queryParam("type").orElse(null), request.queryParam("status").orElse(null),
                 request.queryParam("sort").orElse(null));
         } catch (IllegalArgumentException e) {
-            return ServerResponse.badRequest().contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(new PublicQueryError(e.getMessage()));
+            return ServerResponse.badRequest()
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of("error", e.getMessage()));
         }
         return wishService.listPublic(query)
-            .flatMap(result -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(result));
+            .flatMap(result -> ServerResponse.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(result));
     }
 
     private static Integer integerParameter(ServerRequest request, String name) {
@@ -107,9 +111,6 @@ public class WishPublicRouter implements CustomEndpoint {
                 throw new IllegalArgumentException(name + " 必须是有效整数");
             }
         }).orElse(null);
-    }
-
-    public record PublicQueryError(String error) {
     }
 
     private Mono<ServerResponse> submitWish(ServerRequest request) {

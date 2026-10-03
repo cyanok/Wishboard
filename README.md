@@ -65,7 +65,7 @@
 
 ### 分页显示
 
-主题可以使用 `wishFinder.listPublic(page, size)` 获取全部公开类型的分页结果，或使用 `wishFinder.listPublic(page, size, type, status, sort)` 同时筛选和排序。两个方法均返回 `Mono<ListResult<PublicWish>>`，Halo 会在模板调用时解析为分页对象；`page`、`size` 是 `Integer`，传 `null` 分别使用默认值 `1`、`20`。
+使用 `wishFinder.listPublic(page, size)` 分页获取公开便签，或使用 `wishFinder.listPublic(page, size, type, status, sort)` 按类型、状态筛选和排序。`page`、`size` 传 `null` 时，分别使用默认值 `1`、`20`。
 
 以下示例显示第一页、每页 20 条的进行中心愿：
 
@@ -127,10 +127,6 @@ GET /apis/anonymous.wishboard.aobp.cn/v1alpha1/wishes?page=1&size=20&type=wish&s
 `items` 中的每条便签仅包含 `metadata.name` 和 `spec`。`spec` 字段为 `content`、`nickname`、`type`、`color`、`status`、`anonymous`、`aiReply`、`emotionTag`、`doneImage`、`doneNote`、`priority`、`createdAt`、`completedAt`。匿名投稿或昵称为空白时，`nickname` 统一为“匿名”；不返回 IP、关联用户名和其他元数据。
 
 非法页码、每页条数、非公开状态或不支持的排序返回 `400`，错误体为 `{ "error": "说明" }`。为避免分页偏移溢出，`page * size` 不得超过 `2147483647`，Finder 遵循相同限制。采用普通页码分页，数据增删或筛选字段变化时，相邻请求的页面内容可能移动，不保证跨请求快照一致性。
-
-## 开发验证
-
-使用 JDK 21 运行 `.\gradlew.bat test build -x buildFrontend`，执行后端测试和打包，不重建 Console 产物。真实 Halo 的双版本、升级及模板验证步骤见 [公开分页集成验证](src/test/integration/README.md)。
 
 ## 交流
 

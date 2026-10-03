@@ -8,6 +8,7 @@ import run.halo.app.plugin.BasePlugin;
 import run.halo.app.plugin.PluginContext;
 import cn.aobp.wishboard.model.Wish;
 import cn.aobp.wishboard.model.WishType;
+
 import java.time.Instant;
 
 @Slf4j

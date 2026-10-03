@@ -29,12 +29,18 @@ public class WishFinder {
         return true;
     }
 
+    /**
+     * 分页获取公开便签
+     */
     public Mono<ListResult<PublicWish>> listPublic(Integer page, Integer size) {
         return listPublic(page, size, null, null, null);
     }
 
+    /**
+     * 按类型、状态和创建时间排序分页获取公开便签
+     */
     public Mono<ListResult<PublicWish>> listPublic(Integer page, Integer size,
-                                                  String type, String status, String sort) {
+                                                 String type, String status, String sort) {
         return Mono.defer(() -> wishService.listPublic(PublicWishQuery.of(page, size, type, status, sort)));
     }
 

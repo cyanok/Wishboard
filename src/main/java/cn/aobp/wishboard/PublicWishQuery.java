@@ -1,12 +1,24 @@
 package cn.aobp.wishboard;
 
+import lombok.Data;
+
 import java.util.Set;
 
-/** 新公开分页入口共用的查询参数，不改变旧 Finder 的查询规则。 */
-public record PublicWishQuery(int page, int size, String type, String status, String sort) {
+/**
+ * 公开便签分页查询参数。
+ */
+@Data
+public class PublicWishQuery {
+
     static final Set<String> PUBLIC_STATUSES = Set.of("approved", "pending", "doing", "done");
 
-    public PublicWishQuery {
+    private final int page;
+    private final int size;
+    private final String type;
+    private final String status;
+    private final String sort;
+
+    public PublicWishQuery(int page, int size, String type, String status, String sort) {
         if (page < 1) {
             throw new IllegalArgumentException("page 必须是从 1 开始的正整数");
         }
@@ -29,6 +41,11 @@ public record PublicWishQuery(int page, int size, String type, String status, St
         if (!"createdAt,desc".equals(sort) && !"createdAt,asc".equals(sort)) {
             throw new IllegalArgumentException("sort 仅支持 createdAt,desc 或 createdAt,asc");
         }
+        this.page = page;
+        this.size = size;
+        this.type = type;
+        this.status = status;
+        this.sort = sort;
     }
 
     public static PublicWishQuery of(Integer page, Integer size, String type, String status, String sort) {

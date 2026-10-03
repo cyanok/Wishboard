@@ -13,30 +13,30 @@ class PublicWishQueryTest {
     @Test
     void defaultsAndBlankFilters() {
         var query = PublicWishQuery.of(null, null, " \t", " ", " ");
-        assertEquals(1, query.page());
-        assertEquals(20, query.size());
-        assertNull(query.type());
-        assertNull(query.status());
-        assertEquals("createdAt,desc", query.sort());
+        assertEquals(1, query.getPage());
+        assertEquals(20, query.getSize());
+        assertNull(query.getType());
+        assertNull(query.getStatus());
+        assertEquals("createdAt,desc", query.getSort());
     }
 
     @Test
     void preservesExactTypeAndAcceptsMaximumOffset() {
         var query = PublicWishQuery.of(Integer.MAX_VALUE, 1, "custom-type", "doing",
             "createdAt,asc");
-        assertEquals(Integer.MAX_VALUE, query.page());
-        assertEquals("custom-type", query.type());
-        assertEquals("doing", query.status());
-        assertEquals("createdAt,asc", query.sort());
-        assertEquals(100, PublicWishQuery.of(1, 100, null, null, null).size());
+        assertEquals(Integer.MAX_VALUE, query.getPage());
+        assertEquals("custom-type", query.getType());
+        assertEquals("doing", query.getStatus());
+        assertEquals("createdAt,asc", query.getSort());
+        assertEquals(100, PublicWishQuery.of(1, 100, null, null, null).getSize());
         assertEquals(21_474_836,
-            PublicWishQuery.of(21_474_836, 100, null, null, null).page());
+            PublicWishQuery.of(21_474_836, 100, null, null, null).getPage());
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"approved", "pending", "doing", "done"})
     void acceptsOnlyPublicStatuses(String status) {
-        assertEquals(status, PublicWishQuery.of(1, 20, null, status, null).status());
+        assertEquals(status, PublicWishQuery.of(1, 20, null, status, null).getStatus());
     }
 
     @ParameterizedTest
