@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import run.halo.app.theme.finders.Finder;
+import run.halo.app.extension.ListResult;
+import cn.aobp.wishboard.model.PublicWish;
 import cn.aobp.wishboard.model.Wish;
 import cn.aobp.wishboard.model.WishType;
 
@@ -25,6 +27,15 @@ public class WishFinder {
     /** 保留给现有主题模板的可用性检查。 */
     public boolean isAvailable() {
         return true;
+    }
+
+    public Mono<ListResult<PublicWish>> listPublic(Integer page, Integer size) {
+        return listPublic(page, size, null, null, null);
+    }
+
+    public Mono<ListResult<PublicWish>> listPublic(Integer page, Integer size,
+                                                  String type, String status, String sort) {
+        return Mono.defer(() -> wishService.listPublic(PublicWishQuery.of(page, size, type, status, sort)));
     }
 
     /**

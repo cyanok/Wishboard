@@ -2,12 +2,17 @@ package cn.aobp.wishboard;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import run.halo.app.extension.ExtensionClient;
 import run.halo.app.extension.ListOptions;
+import run.halo.app.extension.ListResult;
+import run.halo.app.extension.PageRequestImpl;
 import run.halo.app.extension.ReactiveExtensionClient;
+import run.halo.app.extension.index.query.Queries;
+import cn.aobp.wishboard.model.PublicWish;
 import cn.aobp.wishboard.model.Wish;
 
 import java.time.Instant;
@@ -24,6 +29,24 @@ public class WishService {
 
     /** IP 限频记录: ip -> (timestamp, count) */
     private final Map<String, long[]> rateLimitMap = new ConcurrentHashMap<>();
+
+    public Mono<ListResult<PublicWish>> listPublic(PublicWishQuery query) {
+        var options = ListOptions.builder()
+            .andQuery(Queries.in("spec.status", PublicWishQuery.PUBLIC_STATUSES))
+            .andQuery(Queries.isNull("metadata.deletionTimestamp"));
+        if (query.type() != null) {
+            options.andQuery(Queries.equal("spec.type", query.type()));
+        }
+        if (query.status() != null) {
+            options.andQuery(Queries.equal("spec.status", query.status()));
+        }
+        var direction = "createdAt,asc".equals(query.sort()) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        var sort = Sort.by(direction, "spec.createdAt").and(Sort.by("metadata.name"));
+        return client.listBy(Wish.class, options.build(),
+                PageRequestImpl.of(query.page(), query.size(), sort))
+            .map(result -> new ListResult<>(result.getPage(), result.getSize(), result.getTotal(),
+                result.getItems().stream().map(PublicWish::from).toList()));
+    }
 
     public Flux<Wish> listApproved() {
         return client.listAll(Wish.class, ListOptions.builder().build(), null)

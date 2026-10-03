@@ -1,5 +1,6 @@
 package cn.aobp.wishboard;
 
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.webflux.core.fn.SpringdocRouteBuilder;
@@ -11,13 +12,17 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 import run.halo.app.core.extension.endpoint.CustomEndpoint;
 import run.halo.app.extension.GroupVersion;
+import run.halo.app.extension.ListResult;
 import run.halo.app.plugin.ReactiveSettingFetcher;
+import cn.aobp.wishboard.model.PublicWish;
 import cn.aobp.wishboard.model.Wish;
 import java.net.InetSocketAddress;
 import java.time.Instant;
 import java.util.Map;
 
 import static org.springdoc.core.fn.builders.apiresponse.Builder.responseBuilder;
+import static org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder;
+import static org.springdoc.core.fn.builders.schema.Builder.schemaBuilder;
 
 /**
  * 公开接口（匿名可访问）：查看心愿列表、投稿、AI润色。
@@ -45,6 +50,30 @@ public class WishPublicRouter implements CustomEndpoint {
     public RouterFunction<ServerResponse> endpoint() {
         final var tag = "anonymous.wishboard.aobp.cn/v1alpha1/Wishboard";
         return SpringdocRouteBuilder.route()
+            .GET("wishes", this::listPublic,
+                b -> b.operationId("ListPublicWishes").tag(tag)
+                    .description("分页获取公开便签，仅包含 approved、pending、doing、done 且未删除的记录")
+                    .parameter(parameterBuilder().name("page").in(ParameterIn.QUERY)
+                        .description("页码，从 1 开始；page 与 size 的乘积不能超过 2147483647")
+                        .schema(schemaBuilder().implementation(Integer.class).minimum("1").defaultValue("1")))
+                    .parameter(parameterBuilder().name("size").in(ParameterIn.QUERY)
+                        .description("每页条数")
+                        .schema(schemaBuilder().implementation(Integer.class).minimum("1").maximum("100")
+                            .defaultValue("20")))
+                    .parameter(parameterBuilder().name("type").in(ParameterIn.QUERY)
+                        .description("类型 slug 精确匹配，省略或空白表示全部类型").implementation(String.class))
+                    .parameter(parameterBuilder().name("status").in(ParameterIn.QUERY)
+                        .description("公开状态，省略或空白表示全部公开状态")
+                        .schema(schemaBuilder().implementation(String.class)
+                            .allowableValues(new String[]{"approved", "pending", "doing", "done"})))
+                    .parameter(parameterBuilder().name("sort").in(ParameterIn.QUERY)
+                        .description("创建时间排序，同时间按 metadata.name 升序；省略或空白使用默认顺序")
+                        .schema(schemaBuilder().implementation(String.class).defaultValue("createdAt,desc")
+                            .allowableValues(new String[]{"createdAt,desc", "createdAt,asc"})))
+                    .response(responseBuilder().responseCode("200").description("公开便签分页结果")
+                        .implementation(ListResult.generateGenericClass(PublicWish.class)))
+                    .response(responseBuilder().responseCode("400").description("查询参数无效")
+                        .implementation(PublicQueryError.class)))
             .POST("wishes/-/submit", this::submitWish,
                 b -> b.operationId("SubmitWish").tag(tag)
                     .description("访客投稿便签（树洞/心愿）")
@@ -54,6 +83,33 @@ public class WishPublicRouter implements CustomEndpoint {
                     .description("AI 润色心愿内容")
                     .response(responseBuilder().description("润色结果")))
             .build();
+    }
+
+    private Mono<ServerResponse> listPublic(ServerRequest request) {
+        final PublicWishQuery query;
+        try {
+            query = PublicWishQuery.of(integerParameter(request, "page"), integerParameter(request, "size"),
+                request.queryParam("type").orElse(null), request.queryParam("status").orElse(null),
+                request.queryParam("sort").orElse(null));
+        } catch (IllegalArgumentException e) {
+            return ServerResponse.badRequest().contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(new PublicQueryError(e.getMessage()));
+        }
+        return wishService.listPublic(query)
+            .flatMap(result -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(result));
+    }
+
+    private static Integer integerParameter(ServerRequest request, String name) {
+        return request.queryParam(name).map(value -> {
+            try {
+                return Integer.valueOf(value);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException(name + " 必须是有效整数");
+            }
+        }).orElse(null);
+    }
+
+    public record PublicQueryError(String error) {
     }
 
     private Mono<ServerResponse> submitWish(ServerRequest request) {

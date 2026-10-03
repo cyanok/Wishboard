@@ -16,6 +16,16 @@ dependencies {
     implementation platform('run.halo.tools.platform:plugin:2.25.0')
     compileOnly 'run.halo.app:api'
     compileOnly 'run.halo.aifoundation:api:1.0.0'
+    testImplementation 'run.halo.app:api'
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.mockito:mockito-junit-jupiter'
+    testImplementation 'io.projectreactor:reactor-test'
+    testImplementation 'org.springframework:spring-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
 }
 
 java {

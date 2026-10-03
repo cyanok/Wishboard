@@ -15,6 +15,7 @@
 - **访问保护**：支持访问频率限制和敏感词过滤
 - **数据管理**：支持便签与类型的导入、导出、批量管理和审核
 - **主题适配**：提供独立页面、主题模板覆盖和 Finder 数据访问能力
+- **公开分页**：提供匿名只读 API 和分页 Finder，支持按类型、公开状态筛选和创建时间排序
 
 ## 基本使用
 
@@ -61,6 +62,75 @@
 - `wishFinder.getTypeMap()`：获取类型名称映射
 
 自定义 `wishes.html` 时，可直接使用插件注入的页面标题、副标题、纪念日设置、投稿开关和 AI 开关等模板变量。
+
+### 分页显示
+
+主题可以使用 `wishFinder.listPublic(page, size)` 获取全部公开类型的分页结果，或使用 `wishFinder.listPublic(page, size, type, status, sort)` 同时筛选和排序。两个方法均返回 `Mono<ListResult<PublicWish>>`，Halo 会在模板调用时解析为分页对象；`page`、`size` 是 `Integer`，传 `null` 分别使用默认值 `1`、`20`。
+
+以下示例显示第一页、每页 20 条的进行中心愿：
+
+```html
+<th:block th:if="${wishFinder != null}">
+  <th:block th:with="result=${wishFinder.listPublic(1, 20, 'wish', 'doing', 'createdAt,desc')}">
+    <article th:each="wish : ${result.items}">
+      <p th:text="${wish.spec.content}">心愿内容</p>
+      <span th:text="${wish.spec.nickname}">昵称</span>
+    </article>
+    <p th:if="${#lists.isEmpty(result.items)}">暂无便签</p>
+    <p th:text="|共 ${result.total} 条，第 ${result.page} 页|">分页信息</p>
+  </th:block>
+</th:block>
+```
+
+不筛选时可改用 `wishFinder.listPublic(1, 20)`，或将完整调用中的 `type`、`status` 传为 `null`。分页参数、公开规则和排序规则与下方 HTTP API 一致。
+
+新分页仅包含 `approved`、`pending`、`doing`、`done` 四种状态且未删除的便签。其中 `pending` 表示心愿待处理，不是等待审核。待审核、已拒绝、未知状态和缺失状态的便签不会进入结果或总数。公开昵称已经过处理，可直接显示 `wish.spec.nickname`。
+
+原有 `listApproved()`、`listByType()`、`countApproved()`、`countByType()` 和内置 `/wishes` 页面的行为保持不变，内置页面不会自动增加翻页界面。旧计数方法仍沿用旧公开规则，不能作为新分页的总数；分页展示应使用本次查询返回的 `result.total`。
+
+## 公开分页 API
+
+无需登录即可请求：
+
+```http
+GET /apis/anonymous.wishboard.aobp.cn/v1alpha1/wishes?page=1&size=20&type=wish&status=doing&sort=createdAt,desc
+```
+
+| 参数 | 默认值 | 说明 |
+| --- | --- | --- |
+| `page` | `1` | 从 1 开始的正整数 |
+| `size` | `20` | 每页条数，允许 `1–100` |
+| `type` | 不筛选 | 类型 slug，精确匹配，例如 `wish`、`treehole` 或自定义类型标识 |
+| `status` | 不筛选 | 仅支持 `approved`、`pending`、`doing`、`done` |
+| `sort` | `createdAt,desc` | 创建时间降序；另支持 `createdAt,asc` 升序 |
+
+省略或传空白 `type`、`status` 表示不筛选，省略或传空白 `sort` 使用默认排序。相同创建时间的便签按 `metadata.name` 升序排列；缺失创建时间的便签在升序时排在前面，降序时排在后面。类型和状态条件共同生效，筛选在分页之前完成。
+
+成功返回 `200`，JSON 使用 Halo 的 `ListResult<PublicWish>` 结构：
+
+```json
+{
+  "page": 1,
+  "size": 20,
+  "total": 0,
+  "items": [],
+  "totalPages": 0,
+  "hasNext": false,
+  "hasPrevious": false,
+  "first": true,
+  "last": true
+}
+```
+
+`total` 是同时满足公开规则、类型和状态条件的总数。类型不存在、没有匹配项或请求超出最后一页时，仍返回 `200` 和空 `items`，保留请求页码及实际总数。翻页时使用 `hasNext`、`hasPrevious` 判断是否有相邻页。
+
+`items` 中的每条便签仅包含 `metadata.name` 和 `spec`。`spec` 字段为 `content`、`nickname`、`type`、`color`、`status`、`anonymous`、`aiReply`、`emotionTag`、`doneImage`、`doneNote`、`priority`、`createdAt`、`completedAt`。匿名投稿或昵称为空白时，`nickname` 统一为“匿名”；不返回 IP、关联用户名和其他元数据。
+
+非法页码、每页条数、非公开状态或不支持的排序返回 `400`，错误体为 `{ "error": "说明" }`。为避免分页偏移溢出，`page * size` 不得超过 `2147483647`，Finder 遵循相同限制。采用普通页码分页，数据增删或筛选字段变化时，相邻请求的页面内容可能移动，不保证跨请求快照一致性。
+
+## 开发验证
+
+使用 JDK 21 运行 `.\gradlew.bat test build -x buildFrontend`，执行后端测试和打包，不重建 Console 产物。真实 Halo 的双版本、升级及模板验证步骤见 [公开分页集成验证](src/test/integration/README.md)。
 
 ## 交流
 
